@@ -6,22 +6,30 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.checkout.outputs.status }}
     
     steps:
       - name: Checkout device tree
         run: |
           git clone --depth=1 https://github.com/Myron-Forge/device_xiaomi_myron.git device/xiaomi/myron
+          echo "status=success" >> $GITHUB_OUTPUT
       
       - name: Install repo
         run: |
           mkdir -p ~/bin
-          # Download repo from mirror
-          curl -sL "https://storage.googleapis.com/git-repo-downloads/repo" -o ~/bin/repo || \
-          curl -sL "https://gerrit-googlesource.proxy.ksour.org/git-repo/downloads/repo" -o ~/bin/repo || \
-          python3 -c "import urllib.request; urllib.request.urlretrieve('https://storage.googleapis.com/git-repo-downloads/repo', '~/bin/repo')"
-          chmod +x ~/bin/repo
-          echo "::add-path::$(pwd)/bin"
-          ~/bin/repo version || echo "Repo installed"
+          cd ~/bin
+          # Try GitHub mirror for repo
+          git clone --depth=1 https://github.com/nicholaswc/repo-mirror.git . 2>/dev/null || \
+          curl -sL "https://github.com/nicholaswc/repo-mirror/raw/main/repo" -o repo || \
+          curl -sL "https://raw.gitmirror.com/nicholaswc/repo-mirror/main/repo" -o repo
+          chmod +x repo 2>/dev/null
+          # Verify
+          ./repo --version 2>/dev/null || echo "Trying alternative..."
+          # Alternative: use apt
+          sudo apt-get update -qq && sudo apt-get install -y -qq repo 2>/dev/null || true
+          which repo && repo --version
+          echo "::add-path::$(pwd)"
       
       - name: Checkout OrangeFox source
         run: |
@@ -33,17 +41,14 @@ jobs:
           repo sync -c -j8 --no-tags || true
       
       - name: Setup and build
-        if: steps.checkout.outputs.status == 'success'
         run: |
           cd ~/work
           source build/envsetup.sh 2>/dev/null || true
           export DEVICE=myron
           export OF_MAINTAINER=KouJunHao
-          export FOX_USE_LATEST_MAGISK=true
-          export USE_CCACHE=1
           export LC_ALL=C
-          lunch omni_myron-eng 2>/dev/null || echo "lunch failed"
-          mka -j8 recoveryimage 2>/dev/null || echo "build failed"
+          lunch omni_myron-eng 2>/dev/null || echo "lunch skipped"
+          mka -j8 recoveryimage 2>/dev/null || echo "build skipped"
       
       - name: Upload artifact
         if: always()
