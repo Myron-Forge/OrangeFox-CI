@@ -2,8 +2,6 @@ name: Build OrangeFox Recovery
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 jobs:
   build:
@@ -14,30 +12,29 @@ jobs:
         run: |
           git clone --depth=1 https://github.com/Myron-Forge/device_xiaomi_myron.git device/xiaomi/myron
       
+      - name: Install repo
+        run: |
+          curl -sLo ~/bin/repo "https://storage.googleapis.com/git-repo-downloads/repo"
+          chmod +x ~/bin/repo
+          echo "::add-path::~/bin"
+      
       - name: Checkout OrangeFox source
         run: |
           mkdir -p ~/work
           cd ~/work
+          git config --global credential.helper store
           repo init -u https://github.com/OrangeFoxRecovery/Manifest.git -b fox_9.0 --depth=1
-          repo sync -c -j8 --no-tags
+          repo sync -c -j8 --no-tags --force-fetch
       
-      - name: Setup build environment
-        run: |
-          source ~/work/device/xiaomi/myron/../..
-          export DEVICE=myron
-          export OEM=xiaomi
-          export TARGET=recoveryimage
-          export FOX_BRANCH=fox_9.0
-          export OF_MAINTAINER=KouJunHao
-          export FOX_USE_LATEST_MAGISK=true
-          export USE_CCACHE=1
-          export CCACHE_SIZE=50G
-          export J_VAL=8
-          
-      - name: Build OrangeFox
+      - name: Setup and build
         run: |
           cd ~/work
           source build/envsetup.sh
+          export DEVICE=myron
+          export OF_MAINTAINER=KouJunHao
+          export FOX_USE_LATEST_MAGISK=true
+          export USE_CCACHE=1
+          export LC_ALL=C
           lunch omni_myron-eng
           mka -j8 recoveryimage
       
@@ -46,3 +43,4 @@ jobs:
         with:
           name: OrangeFox-myron
           path: ~/work/out/target/product/myron/OrangeFox*.zip
+          retention-days: 5
