@@ -14,9 +14,10 @@ jobs:
       
       - name: Install repo
         run: |
-          curl -sLo ~/bin/repo "https://storage.googleapis.com/git-repo-downloads/repo"
+          wget -q -O ~/bin/repo "https://storage.googleapis.com/git-repo-downloads/repo" || \
+          curl -sL "https://raw.githubusercontent.com/OrangeFoxRecovery/fox-6.0_build/master/repo" -o ~/bin/repo
           chmod +x ~/bin/repo
-          echo "::add-path::~/bin"
+          echo "::add-path::$(pwd)/bin"
       
       - name: Checkout OrangeFox source
         run: |
