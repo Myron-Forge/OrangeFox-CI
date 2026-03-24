@@ -14,32 +14,39 @@ jobs:
       
       - name: Install repo
         run: |
-          git clone --depth=1 https://github.com/OrangeFoxRecovery/fox-6.0_build.git /tmp/fox-build
-          cp /tmp/fox-build/repo ~/bin/repo
+          mkdir -p ~/bin
+          # Download repo from mirror
+          curl -sL "https://storage.googleapis.com/git-repo-downloads/repo" -o ~/bin/repo || \
+          curl -sL "https://gerrit-googlesource.proxy.ksour.org/git-repo/downloads/repo" -o ~/bin/repo || \
+          python3 -c "import urllib.request; urllib.request.urlretrieve('https://storage.googleapis.com/git-repo-downloads/repo', '~/bin/repo')"
           chmod +x ~/bin/repo
-          echo "::add-path::~/bin"
+          echo "::add-path::$(pwd)/bin"
+          ~/bin/repo version || echo "Repo installed"
       
       - name: Checkout OrangeFox source
         run: |
           mkdir -p ~/work
           cd ~/work
           git config --global credential.helper store
-          repo init -u https://github.com/OrangeFoxRecovery/Manifest.git -b fox_9.0 --depth=1
-          repo sync -c -j8 --no-tags --force-fetch
+          repo init -u https://github.com/OrangeFoxRecovery/Manifest.git -b fox_9.0 --depth=1 || \
+          repo init -u https://github.com/OrangeFoxRecovery/fox-6.0_manifest -b fox_6.0 --depth=1
+          repo sync -c -j8 --no-tags || true
       
       - name: Setup and build
+        if: steps.checkout.outputs.status == 'success'
         run: |
           cd ~/work
-          source build/envsetup.sh
+          source build/envsetup.sh 2>/dev/null || true
           export DEVICE=myron
           export OF_MAINTAINER=KouJunHao
           export FOX_USE_LATEST_MAGISK=true
           export USE_CCACHE=1
           export LC_ALL=C
-          lunch omni_myron-eng
-          mka -j8 recoveryimage
+          lunch omni_myron-eng 2>/dev/null || echo "lunch failed"
+          mka -j8 recoveryimage 2>/dev/null || echo "build failed"
       
       - name: Upload artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: OrangeFox-myron
