@@ -17,7 +17,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq repo
-          which repo && repo --version
+          which repo && repo version
         shell: bash
 
       - name: Checkout OrangeFox source
@@ -25,19 +25,22 @@ jobs:
           mkdir -p ~/work
           cd ~/work
           git config --global credential.helper store
-          repo init -u https://github.com/OrangeFoxRecovery/Manifest.git -b fox_9.0 --depth=1 || true
-          repo sync -c -j8 --no-tags || true
+          repo init -u https://github.com/OrangeFoxRecovery/fox-6.0_manifest -b fox_6.0 --depth=1
+          repo sync -c -j8 --no-tags
         shell: bash
 
       - name: Setup and build
         run: |
           cd ~/work
-          source build/envsetup.sh 2>/dev/null || true
+          source build/envsetup.sh
           export DEVICE=myron
+          export OEM=xiaomi
           export OF_MAINTAINER=KouJunHao
           export LC_ALL=C
-          lunch omni_myron-eng 2>/dev/null || echo "lunch done"
-          mka -j8 recoveryimage 2>/dev/null || echo "build done"
+          export FOX_USE_LATEST_MAGISK=true
+          export USE_CCACHE=1
+          lunch omni_myron-eng
+          mka -j8 recoveryimage
         shell: bash
 
       - name: Upload artifact
